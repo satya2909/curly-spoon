@@ -1,0 +1,6 @@
+*.wav
+backend/data/
+backend/downloads/
+data # Ignore data directory
+.env
+backend/.env

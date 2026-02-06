@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+yt-dlp
+faster-whisper
+torch
+ctranslate2
+ffmpeg-python
+unidecode
+transformers
+sentencepiece
+scikit-learn
+peft
+datasets
+evaluate
+seqeval
+accelerate
