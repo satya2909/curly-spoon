@@ -4,3 +4,7 @@ backend/downloads/
 data # Ignore data directory
 .env
 backend/.env
+
+# Environment
+.venv/
+__pycache__/

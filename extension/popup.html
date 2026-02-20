@@ -39,12 +39,82 @@
     </style>
   </head>
 
-  <body>
-    <h3>🎤 YouTube ABSA</h3>
+  <body style="
+    width: 300px;
+    height: 480px;
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    color: white;
+    background: linear-gradient(135deg, #2b2e4a 0%, #453a6e 50%, #5d4e8c 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  ">
+    
+    <!-- Background Glow -->
+    <div style="
+      position: absolute;
+      top: -50px;
+      right: -50px;
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    "></div>
 
-    <button id="btn">Analyze Video</button>
+    <div style="text-align: left; width: 85%; margin-bottom: 40px;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <span style="font-size: 24px;">✨</span>
+        <h2 style="margin: 0; font-size: 18px; font-weight: 600;">Aspect Sentiment Analyzer</h2>
+      </div>
+      <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.6);">Analyze video comments with AI</p>
+    </div>
 
-    <p>Results will appear on the page</p>
+    <button id="btn" style="
+      width: 85%;
+      padding: 14px;
+      margin-bottom: 25px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(90deg, #a855f7 0%, #ec4899 100%);
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4);
+      transition: transform 0.1s;
+    ">Analyze Now</button>
+
+    <div style="width: 85%; display: flex; align-items: center; gap: 10px;">
+      <input type="checkbox" id="use_llm" style="
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: white;
+      " />
+      <div style="display: flex; flex-direction: column;">
+        <label for="use_llm" style="font-size: 14px; font-weight: 600; cursor: pointer;">Use LLM Enhancement</label>
+        <span style="font-size: 11px; color: rgba(255,255,255,0.5);">More accurate but slower</span>
+      </div>
+    </div>
+
+    <div style="
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 11px;
+      color: rgba(255,255,255,0.3);
+      padding: 0 20px;
+      box-sizing: border-box;
+    ">
+      Click analyze to extract aspect sentiments from this video
+    </div>
 
     <script src="popup.js"></script>
   </body>

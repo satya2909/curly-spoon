@@ -125,8 +125,14 @@ def classify_sentiment(text: str, aspect: str):
     with torch.no_grad():
         logits = asc_model(**inputs).logits
 
-    label = torch.argmax(logits, dim=-1).item()
-    return {0: "negative", 1: "neutral", 2: "positive"}[label]
+    probs = torch.softmax(logits, dim=-1)
+    conf, label = torch.max(probs, dim=-1)
+    
+    label_idx = label.item()
+    confidence = int(conf.item() * 100) # Convert 0.95 -> 95
+
+    sentiment = {0: "negative", 1: "neutral", 2: "positive"}[label_idx]
+    return sentiment, confidence
 
 
 # -------- MAIN ABSA PIPELINE --------
@@ -139,10 +145,11 @@ def run_absa(transcript: str):
 
     results = []
     for asp in aspects:
-        sentiment = classify_sentiment(transcript, asp)
+        sentiment, conf = classify_sentiment(transcript, asp)
         results.append({
             "aspect": asp,
-            "sentiment": sentiment
+            "sentiment": sentiment,
+            "confidence": conf
         })
 
     return results

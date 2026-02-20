@@ -5,11 +5,18 @@ from groq import Groq
 
 # -------------------- WHISPER SETUP --------------------
 
-model = WhisperModel(
-    "small",
-    device="cpu",
-    compute_type="int8"
-)
+model = None
+
+def get_model():
+    global model
+    if model is None:
+        print("Loading Whisper model (small)...")
+        model = WhisperModel(
+            "small",
+            device="cpu",
+            compute_type="int8"
+        )
+    return model
 
 
 # -------------------- OPTIONAL LLM CLIENT --------------------
@@ -59,7 +66,7 @@ def transcribe(wav_path: str) -> str:
     """
     Transcribes audio into timestamped text.
     """
-    segments, _ = model.transcribe(wav_path)
+    segments, _ = get_model().transcribe(wav_path)
 
     output = []
     for s in segments:

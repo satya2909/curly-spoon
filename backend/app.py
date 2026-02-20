@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
+import json
 from dotenv import load_dotenv
 from groq import Groq
 
@@ -82,9 +83,12 @@ Return JSON array ONLY in this format:
 [
   {{
     "aspect": "...",
-    "sentiment": "positive | negative | neutral"
+    "sentiment": "positive | negative | neutral",
+    "confidence": 95
   }}
 ]
+
+"confidence" should be an integer between 0 and 100 representing your certainty.
 
 Text:
 {text}
@@ -96,7 +100,17 @@ Text:
         temperature=0.2
     )
 
-    return response.choices[0].message.content.strip()
+    try:
+        content = response.choices[0].message.content.strip()
+        # Clean up potential markdown code blocks
+        if content.startswith("```json"):
+            content = content[7:]
+        if content.endswith("```"):
+            content = content[:-3]
+        return json.loads(content.strip())
+    except Exception as e:
+        print(f"Error parsing LLM response: {e}")
+        return []
 
 
 # -------------------- ROUTES --------------------

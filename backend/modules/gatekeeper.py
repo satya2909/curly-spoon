@@ -1,12 +1,19 @@
 import torch
 from transformers import pipeline
 
-clf = pipeline(
-    "sentiment-analysis",
-    model="cardiffnlp/twitter-roberta-base-sentiment",
-    framework="pt",
-    device=0 if torch.cuda.is_available() else -1
-)
+clf = None
+
+def get_classifier():
+    global clf
+    if clf is None:
+        print("Loading gatekeeper model (RoBERTa)...")
+        clf = pipeline(
+            "sentiment-analysis",
+            model="cardiffnlp/twitter-roberta-base-sentiment",
+            framework="pt",
+            device=0 if torch.cuda.is_available() else -1
+        )
+    return clf
 
 DOMAIN_KEYWORDS = {
     "food": [
@@ -48,7 +55,8 @@ def classify(text: str):
         }
 
     # lightweight semantic confirmation
-    result = clf(text[:512])[0]
+    classifier = get_classifier()
+    result = classifier(text[:512])[0]
 
     return {
         "is_food": result["score"] > 0.5,
