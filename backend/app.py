@@ -104,22 +104,40 @@ Text:
 def llm_run_absa(text: str):
 
     prompt = f"""
-You are an Aspect-Based Sentiment Analysis system specialized in food reviews.
+You are an AI system that performs two tasks.
 
-IMPORTANT INSTRUCTIONS:
-1. Identify EACH distinct food item mentioned.
-2. Treat each food item as a separate aspect.
-3. If multiple opinions exist for the same item, combine them.
-4. Do NOT give overall sentiment.
-5. Do NOT summarize.
-6. Return JSON array ONLY in this format:
+STEP 1 — Determine if the text is related to FOOD REVIEWS.
 
-[
-  {{
-    "aspect": "<food_item_name>",
-    "sentiment": "positive | negative | neutral"
-  }}
-]
+If the text discusses food, dishes, restaurants, taste, service of food etc:
+    Perform Aspect-Based Sentiment Analysis.
+
+If the text is NOT related to food:
+    Provide a short summary (1–2 sentences).
+
+OUTPUT FORMAT:
+
+If FOOD related:
+{{
+  "type": "absa",
+  "aspects": [
+    {{
+      "aspect": "<food_item>",
+      "sentiment": "positive | negative | neutral"
+    }}
+  ]
+}}
+
+If NOT FOOD related:
+{{
+  "type": "summary",
+  "summary": "<short summary>"
+}}
+
+IMPORTANT RULES:
+- Identify EACH food item separately.
+- Combine opinions for the same food item.
+- Do NOT output explanations.
+- Return ONLY valid JSON.
 
 Text:
 {text}
@@ -190,7 +208,7 @@ def analyze(req: Req):
 
     if client is None:
         return {
-            "error": "LLM client not initialized. Check GROQ_API_KEY."
+            "error": "Please Try again"
         }
 
     prompt = f"""
