@@ -105,12 +105,11 @@ function showError(msg) {
     <div style="text-align:center; padding:10px;">
       <h3 style="color:#ff6b6b; margin:0 0 10px 0;">Error</h3>
       <p style="font-size:13px; color:rgba(255,255,255,0.8);">${msg}</p>
-      <button id="absa-close-error" style="
+      <button onclick="document.getElementById('absa-panel').remove()" style="
         margin-top:15px; padding:8px 20px; background:rgba(255,255,255,0.1); 
         border:none; color:white; border-radius:8px; cursor:pointer;">Close</button>
     </div>
   `;
-  document.getElementById("absa-close-error").addEventListener("click", removePanel);
 }
 
 function showResults(results) {
@@ -264,11 +263,10 @@ function showGeneralMessage(domain, confidence) {
         <div style="font-weight:bold; color:#c4b5fd;">${domain || "Unknown"}</div>
       </div>
       
-      <button id="absa-close-general" style="
+      <button onclick="document.getElementById('absa-panel').remove()" style="
         margin-top:20px; width:100%; padding:10px; background:rgba(255,255,255,0.1); 
         border:none; color:white; border-radius:10px; cursor:pointer;">Close</button>
     </div>
   `;
-  document.getElementById("absa-close-general").addEventListener("click", removePanel);
 }
 

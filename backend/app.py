@@ -2,10 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
+from datetime import datetime
 import json
 from dotenv import load_dotenv
 from groq import Groq
-
+import pandas as pd
 from modules.downloader import fetch_audio, fetch_metadata
 from modules.asr import transcribe
 from modules.normalize import normalize
@@ -24,6 +25,8 @@ if os.getenv("GROQ_API_KEY"):
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
+
+EXCEL_FILE = "absa_results.xlsx"
 # -------------------- APP SETUP --------------------
 
 app = FastAPI()
@@ -44,6 +47,17 @@ class Req(BaseModel):
 
 
 # -------------------- LLM HELPERS --------------------
+def parse_llm_json(response_text):
+    try:
+        return json.loads(response_text)
+    except:
+        # Attempt to extract JSON if extra text exists
+        try:
+            start = response_text.find("[")
+            end = response_text.rfind("]") + 1
+            return json.loads(response_text[start:end])
+        except:
+            return []
 
 def llm_refine_text(text: str) -> str:
     """
@@ -70,23 +84,42 @@ Text:
 
 
 def llm_run_absa(text: str):
-    """
-    LLM-based ABSA (qualitative evaluation mode)
-    """
-    if client is None or not text.strip():
-        return []
 
     prompt = f"""
-Perform Aspect-Based Sentiment Analysis.
+You are an AI system that performs two tasks.
 
-Return JSON array ONLY in this format:
-[
-  {{
-    "aspect": "...",
-    "sentiment": "positive | negative | neutral",
-    "confidence": 95
-  }}
-]
+STEP 1 — Determine if the text is related to FOOD REVIEWS.
+
+If the text discusses food, dishes, restaurants, taste, service of food etc:
+    Perform Aspect-Based Sentiment Analysis.
+
+If the text is NOT related to food:
+    Provide a short summary (1–2 sentences).
+
+OUTPUT FORMAT:
+
+If FOOD related:
+{{
+  "type": "absa",
+  "aspects": [
+    {{
+      "aspect": "<food_item>",
+      "sentiment": "positive | negative | neutral"
+    }}
+  ]
+}}
+
+If NOT FOOD related:
+{{
+  "type": "summary",
+  "summary": "<short summary>"
+}}
+
+IMPORTANT RULES:
+- Identify EACH food item separately.
+- Combine opinions for the same food item.
+- Do NOT output explanations.
+- Return ONLY valid JSON.
 
 "confidence" should be an integer between 0 and 100 representing your certainty.
 
@@ -112,7 +145,28 @@ Text:
         print(f"Error parsing LLM response: {e}")
         return []
 
+def save_to_excel(restaurant, absa_results):
+    rows = []
 
+    for item in absa_results:
+        rows.append({
+            "Restaurant": restaurant,
+            "Aspect": item.get("aspect"),
+            "Sentiment": item.get("sentiment"),
+            "Evidence": item.get("evidence"),
+            "Timestamp": datetime.now()
+        })
+
+    if not rows:
+        return
+
+    df = pd.DataFrame(rows)
+
+    if os.path.exists(EXCEL_FILE):
+        existing = pd.read_excel(EXCEL_FILE)
+        df = pd.concat([existing, df], ignore_index=True)
+
+    df.to_excel(EXCEL_FILE, index=False)
 # -------------------- ROUTES --------------------
 
 @app.get("/")
@@ -122,75 +176,84 @@ def root():
 
 @app.post("/analyze")
 def analyze(req: Req):
+
     print("\n==============================")
     print("NEW ANALYSIS REQUEST")
     print(f"URL: {req.url}")
-    print(f"LLM Enabled: {req.use_llm}")
 
-    # -------- Data Acquisition --------
+    # -------------------- DATA ACQUISITION --------------------
     title = fetch_metadata(req.url)
     wav = fetch_audio(req.url)
 
-    # -------- ASR --------
+    # -------------------- ASR --------------------
     raw = transcribe(wav)
     clean = normalize(raw)
     clean = remove_timestamps(clean)
 
-    # -------- ROUTING (IMPORTANT: BEFORE FILTERING) --------
-    routing = classify(clean)
-
     print(f"Title: {title}")
-    print(
-        f"Route: {'ABSA' if routing['is_food'] else 'GENERAL'} "
-        f"| Confidence: {routing['confidence']}"
+
+    if not clean.strip():
+        return {
+            "route": "EMPTY",
+            "message": "Transcript is empty"
+        }
+
+    # -------------------- LLM ABSA --------------------
+
+    if client is None:
+        return {
+            "error": "Please Try again"
+        }
+
+    prompt = f"""
+You are an Aspect-Based Sentiment Analysis system specialized in food reviews.
+
+IMPORTANT:
+1. Identify EACH distinct food item mentioned.
+2. Treat each food item separately.
+3. Do NOT provide overall sentiment.
+4. Extract the exact sentence that expresses sentiment.
+5. Ignore items without sentiment.
+
+Return JSON array ONLY in this format:
+
+[
+  {{
+    "aspect": "<food_item_name>",
+    "sentiment": "positive | negative | neutral",
+    "evidence": "exact sentence from text"
+  }}
+]
+
+Text:
+{clean}
+"""
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2
     )
 
-    # -------- OPINION FILTERING --------
-    if routing["is_food"] and req.use_llm and client is not None:
-        clean = llm_filter_opinions(clean, client)
-        clean = llm_refine_text(clean)
+    raw_output = response.choices[0].message.content.strip()
 
-    print("\nTEXT SENT TO ABSA:")
-    print(clean if clean else "[NO OPINION SENTENCES FOUND]")
+    print("\nRAW LLM OUTPUT:")
+    print(raw_output)
 
-    # -------- ABSA PATH --------
-    if routing["is_food"]:
+    # -------------------- PARSE JSON --------------------
+    parsed_result = parse_llm_json(raw_output)
 
-        if not clean.strip():
-            return {
-                "route": "ABSA",
-                "engine": "LLM" if req.use_llm else "CUSTOM",
-                "confidence": routing["confidence"],
-                "absa_result": [],
-                "note": "No opinion-bearing sentences detected"
-            }
+    print("\nPARSED RESULT:")
+    print(parsed_result if parsed_result else "[EMPTY OR INVALID JSON]")
 
-        if req.use_llm and client is not None:
-            result = llm_run_absa(clean)
-            engine = "LLM"
-        else:
-            result = run_absa(clean)
-            engine = "CUSTOM"
+    # -------------------- SAVE TO EXCEL --------------------
+    save_to_excel(title, parsed_result)
 
-        print("\nABSA RESULT:")
-        print(result if result else "[EMPTY RESULT]")
+    print("==============================\n")
 
-        print("==============================\n")
-
-        return {
-            "route": "ABSA",
-            "engine": engine,
-            "confidence": routing["confidence"],
-            "absa_result": result
-        }
-
-    # -------- GENERAL CONTENT --------
-    else:
-        print("GENERAL CONTENT")
-        print("==============================\n")
-
-        return {
-            "route": "GENERAL",
-            "confidence": routing["confidence"],
-            "clean_transcript": clean
-        }
+    return {
+        "route": "ABSA",
+        "engine": "LLM",
+        "restaurant": title,
+        "absa_result": parsed_result
+    }
