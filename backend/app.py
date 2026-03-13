@@ -51,13 +51,20 @@ def parse_llm_json(response_text):
     try:
         return json.loads(response_text)
     except:
-        # Attempt to extract JSON if extra text exists
+        # Try extracting a JSON object first
+        try:
+            start = response_text.find("{")
+            end = response_text.rfind("}") + 1
+            return json.loads(response_text[start:end])
+        except:
+            pass
+        # Fallback: try extracting a JSON array
         try:
             start = response_text.find("[")
             end = response_text.rfind("]") + 1
             return json.loads(response_text[start:end])
         except:
-            return []
+            return {}
 
 def llm_refine_text(text: str) -> str:
     """
@@ -145,17 +152,20 @@ Text:
         print(f"Error parsing LLM response: {e}")
         return []
 
-def save_to_excel(restaurant, absa_results):
+def save_to_excel(restaurant, food_items):
     rows = []
 
-    for item in absa_results:
-        rows.append({
-            "Restaurant": restaurant,
-            "Aspect": item.get("aspect"),
-            "Score": item.get("score"),
-            "Evidence": item.get("evidence"),
-            "Timestamp": datetime.now()
-        })
+    for food in food_items:
+        food_name = food.get("food_item", "Unknown")
+        for item in food.get("aspects", []):
+            rows.append({
+                "Restaurant": restaurant,
+                "FoodItem": food_name,
+                "Aspect": item.get("aspect"),
+                "Score": item.get("score"),
+                "Evidence": item.get("evidence"),
+                "Timestamp": datetime.now()
+            })
 
     if not rows:
         return
@@ -208,25 +218,31 @@ def analyze(req: Req):
     prompt = f"""
 You are an Aspect-Based Sentiment Analysis system specialized in food reviews.
 
-IMPORTANT:
-1. Identify EACH distinct food item mentioned.
-2. Treat each food item separately.
-3. Do NOT provide overall sentiment.
-4. Extract the exact sentence that expresses sentiment.
-5. Ignore items without sentiment.
+Your task:
+1. Identify EACH distinct food item mentioned in the text (e.g. biryani, naan, lassi, pizza).
+2. For EACH food item, identify specific aspects that are reviewed (e.g. flavor, texture, spice level, portion size, freshness, aroma, presentation).
+3. For EACH aspect, extract the exact evidence sentence from the text.
+4. Score each aspect from 1 (extremely negative) to 10 (extremely positive).
+   - 1-3 = negative, 4-6 = neutral/mixed, 7-10 = positive
+5. Do NOT include a food item if no sentiment is expressed about it.
+6. Do NOT add aspects that are not explicitly discussed.
 
-Return JSON array ONLY in this format:
+Return ONLY valid JSON in this exact format (no extra text):
 
-[
-  {{
-    "aspect": "<food_item_name>",
-    "score": <integer from 1 to 10>,
-    "evidence": "exact sentence from text"
-  }}
-]
-
-Where "score" is a polarity rating from 1 (extremely negative) to 10 (extremely positive).
-Use the full range: 1-3 = negative, 4-6 = neutral/mixed, 7-10 = positive.
+{{
+  "food_items": [
+    {{
+      "food_item": "<Name of food item>",
+      "aspects": [
+        {{
+          "aspect": "<aspect name, e.g. flavor>",
+          "score": <integer 1-10>,
+          "evidence": "<exact sentence from text>"
+        }}
+      ]
+    }}
+  ]
+}}
 
 Text:
 {clean}
@@ -240,18 +256,36 @@ Text:
 
     raw_output = response.choices[0].message.content.strip()
 
+    # Clean markdown code fences if present
+    if raw_output.startswith("```json"):
+        raw_output = raw_output[7:]
+    if raw_output.startswith("```"):
+        raw_output = raw_output[3:]
+    if raw_output.endswith("```"):
+        raw_output = raw_output[:-3]
+    raw_output = raw_output.strip()
+
     print("\nRAW LLM OUTPUT:")
     print(raw_output)
 
     # -------------------- PARSE JSON --------------------
-    parsed_result = parse_llm_json(raw_output)
+    parsed = parse_llm_json(raw_output)
 
-    print("\nPARSED RESULT:")
-    print(parsed_result if parsed_result else "[EMPTY OR INVALID JSON]")
+    # Handle both new grouped format and old flat array fallback
+    if isinstance(parsed, dict) and "food_items" in parsed:
+        food_items = parsed["food_items"]
+    elif isinstance(parsed, list):
+        # Old flat format: group all aspects under a single "General" food item
+        food_items = [{"food_item": "General", "aspects": parsed}]
+    else:
+        food_items = []
+
+    print("\nPARSED FOOD ITEMS:")
+    print(food_items if food_items else "[EMPTY OR INVALID JSON]")
 
     # -------------------- SAVE TO EXCEL --------------------
     try:
-        save_to_excel(title, parsed_result)
+        save_to_excel(title, food_items)
     except Exception as e:
         print(f"[WARNING] Could not save to Excel: {e}")
 
@@ -261,5 +295,5 @@ Text:
         "route": "ABSA",
         "engine": "LLM",
         "restaurant": title,
-        "absa_result": parsed_result
+        "food_items": food_items
     }
