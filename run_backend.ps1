@@ -16,4 +16,4 @@ if (Test-Path ".venv") {
 # Run the application
 Write-Host "Starting Backend Server..."
 cd backend
-python -m uvicorn app:app --reload
+python -m uvicorn app:app

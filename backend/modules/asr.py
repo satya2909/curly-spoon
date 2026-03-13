@@ -4,18 +4,17 @@ import dotenv
 from groq import Groq
 
 # -------------------- WHISPER SETUP --------------------
+# Load once at startup — stays alive for the entire server lifetime
 
-model = None
+print("Loading Whisper model (small)...")
+model = WhisperModel(
+    "small",
+    device="cpu",
+    compute_type="int8"
+)
+print("Whisper model loaded.")
 
 def get_model():
-    global model
-    if model is None:
-        print("Loading Whisper model (small)...")
-        model = WhisperModel(
-            "small",
-            device="cpu",
-            compute_type="int8"
-        )
     return model
 
 
