@@ -1,57 +1,64 @@
-async function startAnalysis(url, useLlm) {
-  removePanel();
-  showLoadingPanel();
+// --- INJECTION GUARD ---
+// Prevent multiple listeners if the extension popup clicks are executed multiple times
+if (!window.hasAbsaContentScript) {
+  window.hasAbsaContentScript = true;
 
-  try {
-    // Delegate network request to background script to avoid Mixed Content issues
-    const response = await chrome.runtime.sendMessage({
-      type: "ANALYZE_VIDEO",
-      url: url,
-      useLlm: useLlm
-    });
+  async function startAnalysis(url, useLlm) {
+    removePanel();
+    showLoadingPanel();
 
-    if (chrome.runtime.lastError) {
-      throw new Error(chrome.runtime.lastError.message);
-    }
+    try {
+      // Delegate network request to background script to avoid Mixed Content issues
+      const response = await chrome.runtime.sendMessage({
+        type: "ANALYZE_VIDEO",
+        url: url,
+        useLlm: useLlm
+      });
 
-    if (!response || !response.success) {
-      throw new Error(response.error || "Unknown backend error");
-    }
-
-    const data = response.data;
-
-    // ---- ROUTING ----
-    if (data.route === "ABSA") {
-      // Handle new grouped format (food_items) or old flat format (absa_result)
-      let foodItems = null;
-      if (data.food_items && data.food_items.length > 0) {
-        foodItems = data.food_items;
-      } else if (data.absa_result && data.absa_result.length > 0) {
-        // Wrap old flat format into a single group
-        foodItems = [{ food_item: "Aspects", aspects: data.absa_result }];
+      if (chrome.runtime.lastError) {
+        throw new Error(chrome.runtime.lastError.message);
       }
 
-      if (!foodItems || foodItems.length === 0) {
-        showError("No aspects detected in this video");
-        return;
+      if (!response || !response.success) {
+        throw new Error(response.error || "Unknown backend error");
       }
-      showGroupedResults(foodItems, data.restaurant);
-    } else {
-      showGeneralMessage(data.domain, data.confidence);
-    }
-  } catch (err) {
-    console.error(err);
-    showError("Failed to analyze video: " + err.message);
-  }
-}
-console.log("ABSA Content Script Loaded");
 
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  console.log("Received message:", msg);
-  if (msg.type === "START_ABSA_ANALYSIS" && msg.url) {
-    startAnalysis(msg.url, msg.useLlm);
+      const data = response.data;
+
+      // ---- ROUTING ----
+      if (data.route === "ABSA") {
+        // Handle new grouped format (food_items) or old flat format (absa_result)
+        let foodItems = null;
+        if (data.food_items && data.food_items.length > 0) {
+          foodItems = data.food_items;
+        } else if (data.absa_result && data.absa_result.length > 0) {
+          // Wrap old flat format into a single group
+          foodItems = [{ food_item: "Aspects", aspects: data.absa_result }];
+        }
+
+        if (!foodItems || foodItems.length === 0) {
+          showError("No aspects detected in this video");
+          return;
+        }
+        showGroupedResults(foodItems, data.restaurant);
+      } else {
+        showGeneralMessage(data.domain, data.confidence);
+      }
+    } catch (err) {
+      console.error(err);
+      showError("Failed to analyze video: " + err.message);
+    }
   }
-});
+
+  console.log("ABSA Content Script Loaded & Initialized");
+
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    console.log("Received message:", msg);
+    if (msg.type === "START_ABSA_ANALYSIS" && msg.url) {
+      startAnalysis(msg.url, msg.useLlm);
+    }
+  });
+} // End injection guard
 
 
 // -------------------- UI COMPONENTS --------------------
