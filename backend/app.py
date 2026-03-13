@@ -152,7 +152,7 @@ def save_to_excel(restaurant, absa_results):
         rows.append({
             "Restaurant": restaurant,
             "Aspect": item.get("aspect"),
-            "Sentiment": item.get("sentiment"),
+            "Score": item.get("score"),
             "Evidence": item.get("evidence"),
             "Timestamp": datetime.now()
         })
@@ -220,10 +220,13 @@ Return JSON array ONLY in this format:
 [
   {{
     "aspect": "<food_item_name>",
-    "sentiment": "positive | negative | neutral",
+    "score": <integer from 1 to 10>,
     "evidence": "exact sentence from text"
   }}
 ]
+
+Where "score" is a polarity rating from 1 (extremely negative) to 10 (extremely positive).
+Use the full range: 1-3 = negative, 4-6 = neutral/mixed, 7-10 = positive.
 
 Text:
 {clean}
@@ -247,7 +250,10 @@ Text:
     print(parsed_result if parsed_result else "[EMPTY OR INVALID JSON]")
 
     # -------------------- SAVE TO EXCEL --------------------
-    save_to_excel(title, parsed_result)
+    try:
+        save_to_excel(title, parsed_result)
+    except Exception as e:
+        print(f"[WARNING] Could not save to Excel: {e}")
 
     print("==============================\n")
 

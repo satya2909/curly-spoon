@@ -133,14 +133,13 @@ function showResults(results) {
     html += `<p style="text-align:center; color:#rgba(255,255,255,0.5);">No aspects found.</p>`;
   } else {
     results.forEach(item => {
-      const isPos = item.sentiment === 'positive';
-      const isNeg = item.sentiment === 'negative';
-      
-      const color = isPos ? '#4ade80' : (isNeg ? '#f87171' : '#9ca3af'); // Green, Red, Gray
-      const bgColor = isPos ? 'rgba(74, 222, 128, 0.2)' : (isNeg ? 'rgba(248, 113, 113, 0.2)' : 'rgba(156, 163, 175, 0.2)');
-      const labelColor = isPos ? '#4ade80' : (isNeg ? '#f87171' : '#d1d5db');
-      
-      const confidence = item.confidence || 0;
+      const score = item.score || 5;
+
+      // Color: 1-3 red, 4-6 yellow, 7-10 green
+      const color = score <= 3 ? '#f87171' : (score <= 6 ? '#fbbf24' : '#4ade80');
+      const bgColor = score <= 3 ? 'rgba(248,113,113,0.15)' : (score <= 6 ? 'rgba(251,191,36,0.15)' : 'rgba(74,222,128,0.15)');
+      const barPct = (score / 10) * 100;
+      const label = score <= 3 ? 'Negative' : (score <= 6 ? 'Neutral' : 'Positive');
 
       // Card
       html += `
@@ -149,29 +148,24 @@ function showResults(results) {
           border-radius: 12px;
           padding: 12px 16px;
           margin-bottom: 12px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
           border-left: 4px solid ${color};
           backdrop-filter: blur(5px);
         ">
-          <div>
-            <div style="font-weight:600; font-size:15px; margin-bottom:6px;">${item.aspect}</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="font-weight:600; font-size:15px;">${item.aspect}</div>
             <div style="
-              display:inline-block; 
-              background:${bgColor}; 
-              color:${labelColor}; 
-              padding:2px 8px; 
-              border-radius:6px; 
-              font-size:11px; 
-              text-transform:capitalize;
-            ">${item.sentiment}</div>
+              background:${bgColor};
+              color:${color};
+              padding:2px 10px;
+              border-radius:20px;
+              font-size:13px;
+              font-weight:700;
+            ">${score}/10</div>
           </div>
-
-          <div style="text-align:right;">
-            <div style="font-size:16px; font-weight:bold; color:rgba(255,255,255,0.9);">${confidence}%</div>
-            <div style="font-size:10px; color:rgba(255,255,255,0.4);">confidence</div>
+          <div style="background:rgba(255,255,255,0.08); border-radius:4px; height:6px; overflow:hidden;">
+            <div style="width:${barPct}%; height:100%; background:${color}; border-radius:4px; transition:width 0.4s;"></div>
           </div>
+          <div style="font-size:10px; color:rgba(255,255,255,0.4); margin-top:4px;">${label}</div>
         </div>
       `;
     });
