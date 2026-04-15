@@ -172,7 +172,7 @@ function showGroupedResults(foodItems, restaurant) {
 
   let html = `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3 style="margin:0; font-size:17px; font-weight:700;">🍽️ Food Analysis</h3>
+      <h3 style="margin:0; font-size:17px; font-weight:700;"> Food Analysis</h3>
       <span style="background:rgba(255,255,255,0.1); padding:3px 10px; border-radius:12px; font-size:11px; color:#c4b5fd;">
         ${foodItems.length} item${foodItems.length !== 1 ? 's' : ''} · ${totalAspects} aspects
       </span>
@@ -204,7 +204,7 @@ function showGroupedResults(foodItems, restaurant) {
           "
         >
           <div style="display:flex; align-items:center; gap:10px;">
-            <span style="font-size:18px;">🍽️</span>
+            <span style="font-size:18px;"></span>
             <div>
               <div style="font-size:15px; font-weight:700; color:white;">${food.food_item}</div>
               <div style="font-size:10px; color:rgba(255,255,255,0.45); margin-top:1px;">${aspects.length} aspect${aspects.length !== 1 ? 's' : ''}</div>

@@ -5,7 +5,7 @@ document.getElementById("btn").onclick = async () => {
     alert("Could not get YouTube URL");
     return;
   }
-
+[]
   const useLlm = document.getElementById("use_llm").checked;
 
   // Inject content script in case the tab was open before the extension loaded
